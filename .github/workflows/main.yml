@@ -106,7 +106,3 @@ jobs:
   
       - name: Test Run
         run: ./build/sgn.exe --version
-
-  
-      - name: Test Run
-        run: ./build/sgn.exe --version
