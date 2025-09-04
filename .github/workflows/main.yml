@@ -9,56 +9,23 @@ jobs:
   macos-run:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.21
-    - name: Make Build
-      run: make
-    - name: Test Run
-      run: ./build/sgn --version
-
-  linux-run:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v3
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.21
-    - name: Make Build
-      run: make
-    - name: Test Run
-      run: ./build/sgn --version
-
-  windows-run:
-    runs-on: windows-latest
-    steps:
       - uses: actions/checkout@v3
   
-      # 安装 MSYS2 并编译 Keystone
-      - name: Install MSYS2 and Keystone
+      - name: Install Keystone
         run: |
-          choco install msys2 --no-progress
-          C:\tools\msys64\usr\bin\bash.exe -lc "
-            pacman -Syu --noconfirm &&
-            pacman -S --noconfirm base-devel git cmake make gcc &&
-            git clone --depth 1 https://github.com/keystone-engine/keystone.git &&
-            cd keystone &&
-            mkdir build && cd build &&
-            cmake .. -G 'MSYS Makefiles' -DCMAKE_BUILD_TYPE=Release &&
-            make -j$(nproc) &&
-            make install
-          "
+          brew update
+          brew install keystone
   
-      # 设置 PATH 和 CGO 环境变量
-      - name: Set environment for CGO
-        shell: bash
+      - name: Set CGO env
         run: |
+          if [ -d "/opt/homebrew/lib" ]; then
+            echo "CGO_CFLAGS=-I/opt/homebrew/include" >> $GITHUB_ENV
+            echo "CGO_LDFLAGS=-L/opt/homebrew/lib -lkeystone" >> $GITHUB_ENV
+          else
+            echo "CGO_CFLAGS=-I/usr/local/include" >> $GITHUB_ENV
+            echo "CGO_LDFLAGS=-L/usr/local/lib -lkeystone" >> $GITHUB_ENV
+          fi
           echo "CGO_ENABLED=1" >> $GITHUB_ENV
-          echo "PKG_CONFIG_PATH=/mingw64/lib/pkgconfig" >> $GITHUB_ENV
-          echo "PATH=$PATH:/mingw64/bin" >> $GITHUB_ENV
   
       - name: Set up Go
         uses: actions/setup-go@v3
@@ -67,6 +34,79 @@ jobs:
   
       - name: Make Build
         run: make
+  
+      - name: Test Run
+        run: ./build/sgn --version
+
+  linux-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+  
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake make gcc g++ python3
+  
+      - name: Install Keystone
+        run: |
+          git clone --depth=1 https://github.com/keystone-engine/keystone.git
+          cd keystone && mkdir build && cd build
+          cmake .. && make -j$(nproc) && sudo make install
+  
+      - name: Configure library path
+        run: |
+          echo "/usr/local/lib" | sudo tee /etc/ld.so.conf.d/keystone.conf
+          sudo ldconfig
+          echo "CGO_CFLAGS=-I/usr/local/include" >> $GITHUB_ENV
+          echo "CGO_LDFLAGS=-L/usr/local/lib -lkeystone" >> $GITHUB_ENV
+          echo "CGO_ENABLED=1" >> $GITHUB_ENV
+  
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.21
+  
+      - name: Build
+        run: make
+  
+      - name: Test binary
+        run: ./build/sgn --version
+
+  windows-run:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+  
+      - name: Install dependencies
+        run: choco install cmake ninja --no-progress
+  
+      - name: Build Keystone
+        run: |
+          git clone --depth 1 https://github.com/keystone-engine/keystone.git
+          cd keystone
+          mkdir build && cd build
+          cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release
+          ninja
+          ninja install
+  
+      - name: Set CGO env
+        run: |
+          echo "CGO_ENABLED=1" >> $GITHUB_ENV
+          echo "CGO_CFLAGS=-IC:/Keystone/include" >> $GITHUB_ENV
+          echo "CGO_LDFLAGS=-LC:/Keystone/lib -lkeystone" >> $GITHUB_ENV
+  
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.21
+  
+      - name: Make Build
+        run: make
+  
+      - name: Test Run
+        run: ./build/sgn.exe --version
+
   
       - name: Test Run
         run: ./build/sgn.exe --version
