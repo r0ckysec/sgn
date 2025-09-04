@@ -35,12 +35,38 @@ jobs:
   windows-run:
     runs-on: windows-latest
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Go
-      uses: actions/setup-go@v3
-      with:
-        go-version: 1.21
-    - name: Make Build
-      run: make
-    - name: Test Run
-      run: ./build/sgn.exe --version
+      - uses: actions/checkout@v3
+  
+      # 安装 MSYS2 并编译 Keystone
+      - name: Install MSYS2 and Keystone
+        run: |
+          choco install msys2 --no-progress
+          C:\tools\msys64\usr\bin\bash.exe -lc "
+            pacman -Syu --noconfirm &&
+            pacman -S --noconfirm base-devel git cmake make gcc &&
+            git clone --depth 1 https://github.com/keystone-engine/keystone.git &&
+            cd keystone &&
+            mkdir build && cd build &&
+            cmake .. -G 'MSYS Makefiles' -DCMAKE_BUILD_TYPE=Release &&
+            make -j$(nproc) &&
+            make install
+          "
+  
+      # 设置 PATH 和 CGO 环境变量
+      - name: Set environment for CGO
+        shell: bash
+        run: |
+          echo "CGO_ENABLED=1" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH=/mingw64/lib/pkgconfig" >> $GITHUB_ENV
+          echo "PATH=$PATH:/mingw64/bin" >> $GITHUB_ENV
+  
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.21
+  
+      - name: Make Build
+        run: make
+  
+      - name: Test Run
+        run: ./build/sgn.exe --version
