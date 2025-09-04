@@ -73,29 +73,75 @@ jobs:
       - name: Test binary
         run: ./build/sgn --version
 
-  windows-run:
+  windows-build:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
-  
-      - name: Download prebuilt Keystone
+
+      # 安装 Visual Studio 2022 build tools
+      - name: Setup Visual Studio
+        uses: microsoft/setup-msbuild@v1
+        with:
+          vs-version: 'latest'
+
+      # 安装 CMake
+      - name: Install CMake
+        uses: jwlawson/actions-setup-cmake@v1
+        with:
+          cmake-version: '3.26.4'
+
+      # 安装 Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # Clone Keystone
+      - name: Clone Keystone
         run: |
-          Invoke-WebRequest -Uri "https://github.com/keystone-engine/keystone/releases/download/0.9.2/keystone-0.9.2-win64.zip" -OutFile "keystone.zip"
-          Expand-Archive -Path "keystone.zip" -DestinationPath "keystone"
-  
+          git clone --depth 1 https://github.com/keystone-engine/keystone.git
+          cd keystone
+          mkdir build
+
+      # Build Keystone DLL using official NMake method
+      - name: Build Keystone DLL
+        shell: cmd
+        run: |
+          cd keystone\build
+          cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON ..
+          nmake
+
+      # Build Keystone LIB (optional)
+      - name: Build Keystone LIB
+        shell: cmd
+        run: |
+          cd keystone\build
+          cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ..
+          nmake
+
+      # Set CGO environment variables for Go
       - name: Set CGO env
+        shell: bash
         run: |
           echo "CGO_ENABLED=1" >> $GITHUB_ENV
-          echo "CGO_CFLAGS=-I$($pwd)/keystone/include" >> $GITHUB_ENV
-          echo "CGO_LDFLAGS=-L$($pwd)/keystone/lib -lkeystone" >> $GITHUB_ENV
-  
-      - name: Set up Go
+          echo "CGO_CFLAGS=-I$GITHUB_WORKSPACE/keystone/include" >> $GITHUB_ENV
+          echo "CGO_LDFLAGS=-L$GITHUB_WORKSPACE/keystone/build/llvm/lib -lkeystone" >> $GITHUB_ENV
+
+      # Setup Go
+      - name: Setup Go
         uses: actions/setup-go@v3
         with:
           go-version: 1.21
-  
-      - name: Make Build
-        run: make
-  
+
+      # Build sgn
+      - name: Build sgn
+        shell: bash
+        run: |
+          cd $GITHUB_WORKSPACE
+          make
+
+      # Test Run
       - name: Test Run
-        run: ./build/sgn.exe --version
+        shell: bash
+        run: |
+          ./build/sgn.exe --version
