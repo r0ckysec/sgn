@@ -86,7 +86,6 @@ jobs:
           git clone --depth 1 https://github.com/keystone-engine/keystone.git
           cd keystone
           mkdir build && cd build
-          # 使用合法的 CMakePolicy 并忽略 kstool 或可选模块
           cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_TOOLS=OFF
           ninja
           ninja install
@@ -107,3 +106,4 @@ jobs:
   
       - name: Test Run
         run: ./build/sgn.exe --version
+
