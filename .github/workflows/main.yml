@@ -78,26 +78,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
   
-      - name: Install dependencies
+      - name: Download prebuilt Keystone
         run: |
-          choco install cmake ninja git make --no-progress
-  
-      - name: Build Keystone (禁用 kstool)
-        run: |
-          git clone --depth 1 https://github.com/keystone-engine/keystone.git
-          cd keystone
-          # 修改 CMakeLists.txt 以禁用 kstool 构建
-          (Get-Content "CMakeLists.txt") -replace 'add_subdirectory\(kstool\)', '# add_subdirectory(kstool)' | Set-Content "CMakeLists.txt"
-          mkdir build && cd build
-          cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF
-          ninja
-          ninja install
+          Invoke-WebRequest -Uri "https://github.com/keystone-engine/keystone/releases/download/0.9.2/keystone-0.9.2-win64.zip" -OutFile "keystone.zip"
+          Expand-Archive -Path "keystone.zip" -DestinationPath "keystone"
   
       - name: Set CGO env
         run: |
           echo "CGO_ENABLED=1" >> $GITHUB_ENV
-          echo "CGO_CFLAGS=-IC:/Program Files/Keystone/include" >> $GITHUB_ENV
-          echo "CGO_LDFLAGS=-LC:/Program Files/Keystone/lib -lkeystone" >> $GITHUB_ENV
+          echo "CGO_CFLAGS=-I$($pwd)/keystone/include" >> $GITHUB_ENV
+          echo "CGO_LDFLAGS=-L$($pwd)/keystone/lib -lkeystone" >> $GITHUB_ENV
   
       - name: Set up Go
         uses: actions/setup-go@v3
