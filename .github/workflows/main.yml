@@ -76,71 +76,77 @@ jobs:
   windows-build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v3
+      # 1. Checkout 代码
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # 安装 Visual Studio 2022 build tools
-      - name: Setup Visual Studio
+      # 2. 安装 Visual Studio Build Tools
+      - name: Setup Visual Studio Build Tools
         uses: microsoft/setup-msbuild@v1
         with:
           vs-version: 'latest'
 
-      # 安装 CMake
-      - name: Install CMake
+      # 3. 安装 CMake
+      - name: Setup CMake
         uses: jwlawson/actions-setup-cmake@v1
         with:
           cmake-version: '3.26.4'
 
-      # 安装 Python
+      # 4. 安装 Python（Keystone 构建可能依赖）
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # Clone Keystone
+      # 5. Clone Keystone 源码
       - name: Clone Keystone
         run: |
           git clone --depth 1 https://github.com/keystone-engine/keystone.git
           cd keystone
           mkdir build
 
-      # Build Keystone DLL using official NMake method
+      # 6. Build Keystone DLL using official NMake method
       - name: Build Keystone DLL
         shell: cmd
         run: |
           cd keystone\build
+          REM 初始化 Visual Studio 编译环境
+          call "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+          REM 构建 DLL
           cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON ..
           nmake
 
-      # Build Keystone LIB (optional)
+      # 7. Build Keystone LIB (optional)
       - name: Build Keystone LIB
         shell: cmd
         run: |
           cd keystone\build
+          call "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
           cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ..
           nmake
 
-      # Set CGO environment variables for Go
-      - name: Set CGO env
+      # 8. 设置 CGO 环境变量，用于 Go 编译
+      - name: Set CGO environment
         shell: bash
         run: |
           echo "CGO_ENABLED=1" >> $GITHUB_ENV
           echo "CGO_CFLAGS=-I$GITHUB_WORKSPACE/keystone/include" >> $GITHUB_ENV
           echo "CGO_LDFLAGS=-L$GITHUB_WORKSPACE/keystone/build/llvm/lib -lkeystone" >> $GITHUB_ENV
 
-      # Setup Go
+      # 9. 安装 Go
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
           go-version: 1.21
 
-      # Build sgn
+      # 10. 编译 sgn
       - name: Build sgn
         shell: bash
         run: |
           cd $GITHUB_WORKSPACE
           make
 
-      # Test Run
+      # 11. 测试运行 sgn
       - name: Test Run
         shell: bash
         run: |
