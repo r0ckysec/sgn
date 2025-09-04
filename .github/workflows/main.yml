@@ -76,7 +76,7 @@ jobs:
   windows-build:
     runs-on: windows-latest
     steps:
-      # 1. Checkout 代码
+      # 1. Checkout 仓库
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -92,20 +92,20 @@ jobs:
         with:
           cmake-version: '3.26.4'
 
-      # 4. 安装 Python（Keystone 构建可能依赖）
+      # 4. 安装 Python（Keystone 构建依赖）
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # 5. Clone Keystone 源码
+      # 5. 克隆 Keystone 源码
       - name: Clone Keystone
         run: |
           git clone --depth 1 https://github.com/keystone-engine/keystone.git
           cd keystone
           mkdir build
 
-      # 6. Build Keystone DLL using official NMake method
+      # 6. 初始化 Visual Studio 环境并构建 DLL
       - name: Build Keystone DLL
         shell: cmd
         run: |
@@ -116,7 +116,7 @@ jobs:
           cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON ..
           nmake
 
-      # 7. Build Keystone LIB (optional)
+      # 7. 可选：构建 Keystone 静态库 LIB
       - name: Build Keystone LIB
         shell: cmd
         run: |
@@ -125,7 +125,7 @@ jobs:
           cmake -G "NMake Makefiles" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF ..
           nmake
 
-      # 8. 设置 CGO 环境变量，用于 Go 编译
+      # 8. 设置 CGO 环境变量
       - name: Set CGO environment
         shell: bash
         run: |
