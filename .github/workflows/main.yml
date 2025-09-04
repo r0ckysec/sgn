@@ -80,17 +80,16 @@ jobs:
   
       - name: Install dependencies
         run: |
-          choco install cmake --version=3.20.0 --no-progress
-          choco install ninja git --no-progress
+          choco install cmake ninja git make --no-progress
   
-      - name: Build Keystone
+      - name: Build Keystone (禁用 kstool)
         run: |
           git clone --depth 1 https://github.com/keystone-engine/keystone.git
           cd keystone
-          # 修复 CMakeLists.txt 中的版本要求
-          (Get-Content "CMakeLists.txt") -replace 'cmake_minimum_required\(VERSION 3\.5\)', 'cmake_minimum_required(VERSION 3.5...3.20)' | Set-Content "CMakeLists.txt"
+          # 修改 CMakeLists.txt 以禁用 kstool 构建
+          (Get-Content "CMakeLists.txt") -replace 'add_subdirectory\(kstool\)', '# add_subdirectory(kstool)' | Set-Content "CMakeLists.txt"
           mkdir build && cd build
-          cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF -DBUILD_TOOLS=OFF
+          cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DBUILD_TESTS=OFF
           ninja
           ninja install
   
